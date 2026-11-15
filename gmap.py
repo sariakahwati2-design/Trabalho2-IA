@@ -253,16 +253,23 @@ def load():
     bw_img_health = pygame.transform.scale(bw_img_health, bw_img_health_size)  
 
 def update(dt, screen):
-    
-    global elapsed_time
+    global elapsed_time, auto_play, last_action
     
     elapsed_time += dt
     
     if (elapsed_time / 1000) > auto_play_tempo:
         
         if auto_play and player_pos[2] != 'morto':
-            exec_prolog(decisao())
-            update_prolog()
+            acao = decisao()
+            if acao == "parar":
+                auto_play = False
+                last_action = "parar"
+            elif acao:
+                exec_prolog(acao)
+                update_prolog()
+            else:
+                auto_play = False
+                last_action = "sem acao"
        
         elapsed_time = 0
         
@@ -405,6 +412,5 @@ load()
 
 main_loop(screen)
 pygame.quit()
-
 
 
