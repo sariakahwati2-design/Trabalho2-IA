@@ -1,23 +1,8 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% testes_conhecimento.pl  -  Testes do MEMBRO 1 (base de conhecimento)
-%%
-%% Uso:  swipl -q -g testes -t halt testes_conhecimento.pl
-%%
-%% 1) Cenario deterministico em mapa.pl (deducao classica do poco).
-%% 2) Teste de SOLIDEZ: um explorador aleatorio percorre todos os mapas
-%%    centenas de vezes; depois de cada acao verifica-se, contra o mapa real,
-%%    que NADA do que a KB afirma como certo e falso. (O mapa real so e usado
-%%    aqui, pelo verificador - nunca pela KB.)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 :- consult('main.pl').
 
 :- dynamic tile_original/3.
 :- dynamic n_erros/1.
 
-%% --- Infraestrutura ---------------------------------------------------------
-
-% carrega apenas os tile/3 de um ficheiro de mapa (todos os mapas sao 12x12)
 carrega_mapa(F) :-
     retractall(tile(_,_,_)), retractall(tile_original(_,_,_)),
     setup_call_cleanup(open(F,read,S), le_tiles(S), close(S)).
@@ -29,12 +14,10 @@ le_tiles(S) :-
         le_tiles(S)
     ).
 
-% igual ao que o Python faz: executa a acao e depois "atualiza_obs, verifica_player"
+
 passo(A) :- ignore(call(A)), atualiza_obs, verifica_player.
 
 inicia(F) :- carrega_mapa(F), reset_game, atualiza_obs, verifica_player.
-
-%% --- Verificador de solidez (usa o mapa real) -------------------------------
 
 tipo_tile('P', poco).
 tipo_tile('T', teletransporte).
@@ -59,7 +42,7 @@ verifica(Contexto) :-
            ( format("  ERRO [~w]: ~w~n", [Contexto,E]),
              retract(n_erros(N)), N1 is N+1, assert(n_erros(N1)) )).
 
-%% --- 1) Cenario deterministico ----------------------------------------------
+%% --- 1) Cenario deterministico ---
 %% mapa.pl: poco em (1,3). Em (1,2) sente brisa; em (2,1) nao sente brisa.
 %% => (2,2) livre de poco  => unico candidato de (1,2) e (1,3): poco confirmado.
 
@@ -94,7 +77,7 @@ check(Nome, Objetivo) :-
         retract(n_erros(N)), N1 is N+1, assert(n_erros(N1))
     ).
 
-%% --- 2) Explorador aleatorio (teste de solidez) -----------------------------
+%% --- 2) Explorador aleatorio (teste de solidez) ---
 %% Prefere casas seguras, mas as vezes arrisca (para testar teletransportes,
 %% inimigos e mortes).
 
@@ -136,8 +119,7 @@ media(Sts, I, M) :-
     findall(V, (member(St,Sts), arg(I,St,V)), Vs),
     sum_list(Vs, Sum), length(Vs, Len), M is Sum / Len.
 
-%% --- Execucao --------------------------------------------------------------
-
+%% --- Execucao ---
 mapas(['mapa.pl', 'mapa_facil.pl', 'mapa_medio.pl', 'mapa_dificil.pl',
        'mapa-facil.pl', 'mapa-medio.pl', 'mapa-dificil.pl']).
 

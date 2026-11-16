@@ -1,28 +1,3 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% conhecimento.pl  -  MEMBRO 1: Base de Conhecimento e Percepcao
-%%
-%% Este modulo constroi e mantem o que o agente SABE sobre o labirinto, a partir
-%% exclusivamente das suas percepcoes e da memoria das casas visitadas.
-%%
-%% Organizacao:
-%%   1. Factos dinamicos da base de conhecimento (KB)
-%%   2. Geometria do labirinto (vizinhancas, direcoes)  -> so usa map_size/2
-%%   3. Camada de SENSORES  (UNICO sitio que toca no mapa real, tile/3,
-%%      para simular o que o agente sente na casa onde esta)
-%%   4. Atualizacao da KB depois de cada acao  (atualiza_conhecimento/0)
-%%   5. Motor de inferencia (regras logicas, ponto fixo)
-%%   6. Sincronizacao com memory/3 e certeza/2 (usados pela interface Python)
-%%   7. API de consulta para o MEMBRO 2 (decisao)
-%%   8. Depuracao (mostra_conhecimento/0, relatorio_conhecimento/0)
-%%
-%% Nenhuma regra das seccoes 4-7 consulta tile/3: as decisoes do agente so podem
-%% depender do que esta aqui (percebeu/3, livre/3, confirmado/3, visitado/2, ...).
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% 1. Factos dinamicos da KB
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 % percebeu(X,Y,L)    : lista de percepcoes sentidas na casa (X,Y) (ultima leitura)
 %                      ex.: percebeu(1,2,[brisa]).
 :- dynamic percebeu/3.
@@ -42,7 +17,6 @@
 % ultimo_deslocamento(T) : T = inicio | andar | teletransporte
 :- dynamic ultimo_deslocamento/1.
 
-% Tipos de perigo e o sinal (percepcao) que cada um provoca nas casas vizinhas
 perigo(poco).
 perigo(inimigo).
 perigo(teletransporte).
@@ -51,7 +25,6 @@ sinal(poco,           brisa).
 sinal(inimigo,        passos).
 sinal(teletransporte, palmas).
 
-% Simbolo guardado em memory/3 (formato do codigo-base) -> conteudo da casa
 simbolo_conteudo(brisa,   poco).
 simbolo_conteudo(passos,  inimigo).
 simbolo_conteudo(palmas,  teletransporte).
@@ -83,10 +56,6 @@ reset_conhecimento :-
     retractall(ultimo_deslocamento(_)),
     assert(ultimo_deslocamento(inicio)).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% 2. Geometria do labirinto
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 % casa(X,Y): (X,Y) pertence ao labirinto
 casa(X,Y) :- map_size(MX,MY), between(1,MX,X), between(1,MY,Y).
 
@@ -106,12 +75,6 @@ vizinhos(X,Y,L) :- findall((NX,NY), vizinho(X,Y,NX,NY), L).
 % direcao_para(X,Y,NX,NY,D): orientacao D leva de (X,Y) ao vizinho (NX,NY)
 direcao_para(X,Y,NX,NY,D) :- delta(D,DX,DY), NX =:= X+DX, NY =:= Y+DY.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% 3. Camada de SENSORES (simulacao do ambiente)
-%%    Unico ponto deste modulo que le o mapa real, e apenas para a casa onde o
-%%    agente esta e as suas adjacencias - exatamente o que os sensores dariam.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
 % sensores(X,Y,L): percepcoes do agente na posicao atual (X,Y)
 %   - adjacentes: brisa, palmas, passos   (observacoes/1 do codigo-base)
 %   - locais    : brilho, reflexo         (observacao_loc/2 do codigo-base)
@@ -121,9 +84,6 @@ sensores(X,Y,L) :-
     append(LAdj, LLoc, L0),
     sort(L0, L).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% 4. Atualizacao da KB (chamada apos CADA acao, via atualiza_obs/0)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 atualiza_conhecimento :-
     posicao(X,Y,_),
@@ -174,11 +134,6 @@ detecta_coleta(X,Y,Antigo,Novo) :-
     (   member(reflexo,Antigo), \+ member(reflexo,Novo), \+ powerup_coletado(X,Y)
     ->  assert(powerup_coletado(X,Y)) ; true ).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% 5. Motor de inferencia
-%%    Aplica as regras ate nao surgir conhecimento novo (ponto fixo).
-%%    O conhecimento sobre perigos e monotono: nunca e retirado.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 inferencia :-
     findall(F, (deduz(F), \+ call(F)), L0),
@@ -219,13 +174,6 @@ candidatos(X,Y,T,L) :-
 conteudo_visitado(X,Y,C) :-
     memory(X,Y,L), member(S,L), simbolo_conteudo(S,C).
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% 6. Sincronizacao com memory/3 e certeza/2
-%%    Mantem o formato do codigo-base (usado pela interface e por show_mem):
-%%      memory(X,Y,L) - sinais dos perigos POSSIVEIS em (X,Y)
-%%      certeza(X,Y)  - todos os perigos de (X,Y) estao decididos
-%%    So altera casas NAO visitadas sobre as quais existe informacao.
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 sincroniza_memoria :-
     forall(( casa(X,Y), \+ visitado(X,Y), tem_informacao(X,Y) ),
@@ -247,9 +195,6 @@ tem_informacao(X,Y) :- vizinho(X,Y,VX,VY), percebeu(VX,VY,_), !.
 tem_informacao(X,Y) :- livre(X,Y,_), !.
 tem_informacao(X,Y) :- confirmado(X,Y,_), !.
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% 7. API de consulta (para o MEMBRO 2 - decisao)
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 %% --- Estado do agente ---------------------------------------------------
 posicao_atual(X,Y,D) :- posicao(X,Y,D).
@@ -343,16 +288,6 @@ lista_seguros_nao_visitados(L) :- findall((X,Y), seguro_nao_visitado(X,Y), L).
 lista_perigos_confirmados(L)   :- findall((X,Y,T), perigo_confirmado(X,Y,T), L).
 lista_suspeitas(L)             :- findall((X,Y,T), suspeita(X,Y,T), L).
 lista_visitados(L)             :- findall((X,Y), visitado(X,Y), L).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% 8. Depuracao
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%% Legenda de mostra_conhecimento:
-%%   ^ > v < +  agente (orientacao / morto)
-%%   .  visitada      S  segura nao visitada     ?  desconhecida
-%%   P! T! D!   perigo confirmado (poco / teletransporte / inimigo)
-%%   p t d      suspeitas (minusculas, podem ser varias)
-%%   O  ouro conhecido   U  powerup conhecido
 
 mostra_conhecimento :-
     map_size(MX,MY),
